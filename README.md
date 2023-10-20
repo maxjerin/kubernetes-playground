@@ -7,6 +7,7 @@
     * [ ] jq
     * [ ] minikube
     * [ ] docker
+    * [ ] Istio
 
 # Setup Sample Services
 
