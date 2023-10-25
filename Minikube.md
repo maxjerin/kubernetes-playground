@@ -1,21 +1,85 @@
 # Setup Minikube Node on Remote Machine
 
-
-# Remote Machine
-
-## Start minikube
+# Start minikube
 
 ```
 $ minikube addons enable volumesnapshots
 $ minikube addons enable csi-hostpath-driver
 
-$ minikube start --nodes=3 --memory=4096
+# Get Ip of remote server
+$ hostname -I
+
+# Start minikube with apiserver-ips flag to enable remote connection
+$ minikube start --nodes=3 --memory=4096 -- apiserver-ips=<ip-of-remote-server>
 ```
 
-## Setup Nginx Reverse Proxy
+# Remotely Connect Using SSH Tunnel
+
+## On Remote Machine
+
+```
+# Copy minikube certs after minikube is started with apiserver-ips flag
+$ scp <server>:~/.minikube/ca.crt ~/.minikube/ca-remote-minikube.crt
+$ scp <server>:~/.minikube/profiles/minikube/client.crt ~/.minikube/profiles/minikube/client-remote-minikube.crt
+$ scp <server>:~/.minikube/profiles/minikube/client.key ~/.minikube/profiles/minikube/client-remote-minikube.key
+
+# Get minikube IP from remote server
+$ minikube ip
+```
+
+## On Local Machine
+
+### Start remote tunnel on a separate terminal
+
+```
+$ ssh -N -p 22 <username>@<remote-server-ip> -L 127.0.0.1:18443:<remote-minikube-ip>:8443
+```
+
+### Edit Config File
+
+Open `~/.kube/config`
+
+```
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority: ~/.minikube/ca-remote-minikube.crt
+    extensions:
+    - extension:
+        last-update: Wed, 05 Oct 2022 10:12:36 EDT
+        provider: minikube.sigs.k8s.io
+        version: v1.25.2
+      name: cluster_info
+    server: http://127.0.0.1:18843
+  name: remote-minikube
+contexts:
+- context:
+    cluster: remote-minikube
+    extensions:
+    - extension:
+        last-update: Wed, 05 Oct 2022 10:12:36 EDT
+        provider: minikube.sigs.k8s.io
+        version: v1.25.2
+      name: context_info
+    namespace: default
+    user: remote-minikube
+  name: remote-minikube
+current-context: remote-minikube
+kind: Config
+preferences: {}
+users:
+- name: remote-minikube
+  user:
+    client-certificate: ~/.minikube/profiles/minikube/client-remote-minikube.crt
+    client-key: ~/.minikube/profiles/minikube/client-remote-minikube.key
+```
+
+
+# Remotely Connect Using Nginx Proxy
+
+## On Remote Machine
 
 ### Add Password file
-
 ```
 $ apt-get install apache2-utils -y
 $ htpasswd -c /etc/nginx/.htpasswd minikube
@@ -46,7 +110,7 @@ server {
 systemctl service start nginx.service
 ```
 
-# Local Machine
+## On Local Machine
 
 ### Edit Config File
 
@@ -63,10 +127,10 @@ clusters:
         version: v1.25.2
       name: cluster_info
     server: http://minikube:<htpasswd-password>@<minikube-remote-host-ip>:8080
-  name: minikube-ubuntu
+  name: remote-minikube
 contexts:
 - context:
-    cluster: minikube-ubuntu
+    cluster: remote-minikube
     extensions:
     - extension:
         last-update: Wed, 05 Oct 2022 10:12:36 EDT
@@ -74,12 +138,12 @@ contexts:
         version: v1.25.2
       name: context_info
     namespace: default
-    user: minikube-ubuntu
-  name: minikube-ubuntu
-current-context: minikube-ubuntu
+    user: remote-minikube
+  name: remote-minikube
+current-context: remote-minikube
 kind: Config
 preferences: {}
 users:
-- name: minikube-ubuntu
+- name: remote-minikube
   user:
 ```
