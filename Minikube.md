@@ -147,3 +147,32 @@ users:
 - name: remote-minikube
   user:
 ```
+
+# Expose Ingress Gateway
+
+## On Remote Machine
+
+```
+$ minikube tunnel
+```
+
+## On Local Machine
+
+### Get minikube ingress external IP
+
+```
+# If running istio-ingress
+$ kubectl get svc istio-ingress -n istio-ingress
+
+# If running istio-ingressgateway
+$ kubectl get svc istio-ingressgateway -n istio-system
+
+# Output should be something like
+NAME                   TYPE           CLUSTER-IP      EXTERNAL-IP     PORT(S)                                      AGE
+istio-ingressgateway   LoadBalancer   10.97.107.111   10.97.107.111   15021:32686/TCP,80:30325/TCP,443:31384/TCP   6m7s
+```
+
+```
+
+$ ssh -N -p 22 <username>@<remote-server-ip> -L 127.0.0.1:18443:<remote-minikube-ip>:8443 -L 127.0.0.1:8080:<ingress-external-ip>:80
+```
